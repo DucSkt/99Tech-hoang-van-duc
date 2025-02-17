@@ -61,7 +61,12 @@ Content-Type: application/json
 4. Validate the **HMAC SHA256 signature** to ensure request integrity.
 5. Check **latest update time**:
     - Users can only update their points if at least **5 seconds** have passed since the last update.
-6. Update the **user's score** in Redis and PostgreSQL.
+6. **Update point to DB**: 
+   - The user’s score is first updated in Postgres to ensure data consistency.
+   - After a successful update, an event is pushed to the Message Queue for async processing.
+   - A worker listens to the queue and updates the user’s score in Redis.
+   - If the Top 10 leaderboard is affected, the system triggers an event.
+   - If a ranking change occurs, a WebSocket event notifies all subscribed channel users in real time.
 
 **Security:**
 
