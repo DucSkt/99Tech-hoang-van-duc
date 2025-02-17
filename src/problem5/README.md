@@ -30,7 +30,7 @@
 docker-compose up -d
 ```
 
-## 📌 4️⃣ Testing the API with `curl`
+## 📌 3️⃣ Testing the API with `curl`
 ### 1️⃣ Create a Resource
 ```sh
 curl --location --request POST 'http://localhost:3000/api/v1/resources' \
@@ -45,12 +45,12 @@ curl --location --request GET 'http://localhost:3000/api/v1/resources?take=2&ski
 
 ### 3️⃣ Soft Delete a Resource
 ```sh
-curl --location --request DELETE 'http://localhost:3000/api/v1/resources/67b1b472a1b791d58fc3e1c9'
+curl --location --request DELETE 'http://localhost:3000/api/v1/resources/{id}'
 ```
 
 ### 4️⃣ Update a Resource
 ```sh
-curl --location --request PUT 'http://localhost:3000/api/v1/resources/67b1b472a1b791d58fc3e1c9' \
+curl --location --request PUT 'http://localhost:3000/api/v1/resources/{id}' \
 --header 'Content-Type: application/json' \
 --data-raw '{
     "name": "Updated Resource",
@@ -59,5 +59,5 @@ curl --location --request PUT 'http://localhost:3000/api/v1/resources/67b1b472a1
 ```
 ### 5️⃣ Get Resource Details
 ```sh
-curl --location --request GET 'http://localhost:3000/api/v1/resources/67b20afa8d8947dc03f8f7a1'
+curl --location --request GET 'http://localhost:3000/api/v1/resources/{id}'
 ```
