@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "Problem 5",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Resource",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('create returns 201', () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('resourceId', json.data.id);",
+              "const rawCursor = `${json.data.createdAt}|${json.data.id}`;",
+              "const cursor = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(rawCursor)).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+              "pm.collectionVariables.set('resourceCursor', cursor);",
+              "pm.test('id is generated', () => pm.expect(json.data.id).to.be.a('string'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Demo Resource\",\n  \"description\": \"Created from Postman\",\n  \"status\": \"active\"\n}"
+        },
+        "url": "http://127.0.0.1:3000/resources"
+      }
+    },
+    {
+      "name": "List Resources",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('list returns 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('uses page mode', () => pm.expect(json.data.pagination.mode).to.eql('page'));",
+              "pm.test('has items array', () => pm.expect(json.data.items).to.be.an('array'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "http://127.0.0.1:3000/resources?q=Demo&status=active&page=1&limit=20"
+      }
+    },
+    {
+      "name": "List Resources With Cursor",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('cursor list returns 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('uses cursor mode', () => pm.expect(json.data.pagination.mode).to.eql('cursor'));",
+              "pm.test('has items array', () => pm.expect(json.data.items).to.be.an('array'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "http://127.0.0.1:3000/resources?q=Demo&status=active&cursor={{resourceCursor}}&limit=20"
+      }
+    },
+    {
+      "name": "Get Resource",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('get returns 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "http://127.0.0.1:3000/resources/{{resourceId}}"
+      }
+    },
+    {
+      "name": "Update Resource",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('update returns 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('description is updated', () => pm.expect(json.data.description).to.eql('Updated from Postman'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Updated from Postman\"\n}"
+        },
+        "url": "http://127.0.0.1:3000/resources/{{resourceId}}"
+      }
+    },
+    {
+      "name": "Delete Resource",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('delete returns 204', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "url": "http://127.0.0.1:3000/resources/{{resourceId}}"
+      }
+    }
+  ]
+}

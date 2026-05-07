@@ -1,0 +1,23 @@
+flowchart LR
+  Web[Web Client]
+  API[API Server]
+  Auth[Auth Middleware]
+  Score[Score Module]
+  RefreshJob[Single Scheduled Refresh Job]
+  PG[(PostgreSQL)]
+  Redis[(Redis Sorted Set + Pub/Sub)]
+  WS[WebSocket Gateway]
+
+  Web -->|GET /api/v1/leaderboard| API
+  Web -->|POST /api/v1/actions/start| API
+  Web -->|POST /api/v1/actions/complete| API
+  Web <-->|WS /api/v1/leaderboard/live| WS
+
+  API --> Auth
+  Auth --> Score
+  Score -->|transaction + leaderboard_outbox| PG
+  RefreshJob -->|poll unpublished outbox| PG
+  RefreshJob -->|ZADD newScore and ZREVRANGE top 10| Redis
+  RefreshJob -->|publish if changed with full payload| Redis
+  Redis -->|leaderboard.updated version plus items| WS
+  WS -->|emit received top 10 payload| Web

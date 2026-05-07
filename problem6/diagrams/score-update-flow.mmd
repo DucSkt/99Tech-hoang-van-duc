@@ -1,0 +1,55 @@
+sequenceDiagram
+  participant C as Client
+  participant API as API Server
+  participant PG as PostgreSQL
+  participant R as Redis
+  participant Job as Single Scheduled Refresh Job
+  participant WS as WebSocket Gateway
+
+  C->>API: POST /actions/start
+  API->>API: Validate JWT and actionCode
+  API->>PG: Check no active attempt for this user
+  alt active attempt already exists
+    API-->>C: 409 ACTION_ALREADY_STARTED
+  else no active attempt
+  API->>PG: INSERT action_attempts(status=started, expiresAt)
+  API-->>C: attemptId, actionToken
+  end
+
+  C->>API: POST /actions/complete + Idempotency-Key + proof
+  API->>API: Validate JWT
+  API->>API: Verify actionToken belongs to same user
+  API->>PG: Load action_attempt
+  API->>API: Validate proof, attempt state, expiry, behavior timing
+  alt invalid proof or suspicious behavior
+    API->>PG: Mark attempt rejected or lock user if needed
+    API-->>C: 403 INVALID_PROOF or 423 USER_LOCKED
+  else accepted completion
+  API->>PG: BEGIN
+  API->>PG: Mark action_attempt completed
+  API->>PG: INSERT score_events(attempt_id, action_token_id, idempotency_key)
+  API->>PG: UPDATE users SET score = score + points RETURNING newScore
+  API->>PG: INSERT leaderboard_outbox(userId, newScore)
+  API->>PG: COMMIT
+  API-->>C: newScore
+  end
+
+  Job->>PG: Cron tick every 100-250ms
+  Job->>PG: SELECT unpublished leaderboard_outbox rows
+  alt no unpublished rows
+    Job->>Job: Skip
+  else rows found
+    Job->>R: ZADD leaderboard:global newScore userId for each row
+    Job->>PG: Mark outbox rows published
+    Job->>R: ZREVRANGE leaderboard:global 0 9 WITHSCORES
+    Job->>Job: Compare with last published top 10
+
+    alt top 10 unchanged
+      Job->>Job: No socket publish
+    else top 10 changed
+      Job->>R: INCR leaderboard:version
+      Job->>R: PUBLISH leaderboard.updated { version, items }
+      R-->>WS: leaderboard.updated { version, items }
+      WS-->>C: Emit received top 10 payload
+    end
+  end
